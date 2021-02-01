@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <script type="text/javascript" src="./Webcam.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="./face-api.min.js" defer></script>
+    <script src="./detect-face-api.js" defer></script>
+    <title>WEB CAM</title>
+</head>
+
+<body>
+    <div class="container py-5">
+
+        <div class="row mb-2">
+            <div class="col-md-6 border-end">
+                <video id="webcam" class="w-100" autoplay playsinline width="100%" height="480"
+                    style="border: 10px solid; display:block;margin:auto;"></video>
+                <audio id="snapSound" src="snap.wav" preload="auto"></audio>
+                <div>
+                    <button class="btn btn-primary w-50" id="startCamera" onclick="start()">Démarrer la caméra</button>
+                    <button class="btn btn-danger w-50" id="stopCamera" onclick="end()">Arrêter la caméra</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="row ">
+                    <div class="col-md-6 border-end justify-content-center align-items-center">
+                        <canvas id="canvas" class="border w-100"></canvas>
+                        <div>
+                            <div>
+                                <input type="text" placeholder="VOTRE ID..." id="inputId" class="w-100 mb-2 p-1">
+                            </div>
+                            <button class="btn btn-danger" id="saveImage" onclick="downloadImage()">Sauvegarder</button>
+                            <button class="btn btn-danger" id="takeImage" onclick="take()">Prendre une photo</button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="col">
+                                <p class="p" id="p1"></p>
+                            </div>
+                            <div class="col">
+                                <p class="p" id="p2"></p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <p class="p" id="p3"></p>
+                            </div>
+                            <div class="col">
+                                <p class="p" id="p4"></p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <p class="p" id="p5"></p>
+                            </div>
+                            <div class="col">
+                                <p class="p" id="p6"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <!--<div class="row text-center py-3"
+            style="display:flex; flex-direction: column;  align-items:center; background:#26458A; ">
+            <h2 class="text-light">Téléverser les photos vers S3</h2>
+            <form action="/upload" method="POST" enctype="multipart/form-data">
+                <input type="file" multiple name="avatar" class="btn btn-success">
+                <button class="btn btn-success">Télécharger</button>
+            </form>
+        </div>-->
+
+    </div>
+
+    <script>
+        const webcamElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('canvas');
+        const snapSoundElement = document.getElementById('snapSound');
+        const takeImage = document.getElementById('takeImage');
+        const startCamera = document.getElementById('startCamera');
+        const stopCamera = document.getElementById('stopCamera');
+        const saveImage = document.getElementById('saveImage');
+        const inputId = document.getElementById('inputId');
+
+        const webcam = new Webcam(webcamElement, 'user', canvasElement, snapSoundElement);
+
+        stopCamera.style.display = 'none'
+        saveImage.disabled = true
+        takeImage.disabled = true
+
+        function start() {
+            webcam.start()
+                .then(result => {
+                    console.log("webcam started");
+                })
+                .catch(err => {
+                    console.log(err);
+                });
+            stopCamera.style.display = 'block'
+            startCamera.style.display = 'none'
+            takeImage.disabled = false
+        }
+
+        function end() {
+            takeImage.disabled = true
+            saveImage.disabled = true
+            stopCamera.style.display = 'none'
+            startCamera.style.display = 'block'
+            takeImage.textContent = 'Prendre une photo'
+            let img = document.getElementById('canvaImage')
+            var context = canvasElement.getContext('2d');
+            context.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            console.log(img)
+            document.querySelectorAll('.base64').forEach(element => {
+                element.remove()
+            })
+            index = 1
+            inputId.value = ""
+            webcam.stop()
+        }
+
+
+        let base64 = ''
+        function take() {
+            if (index < 7) {
+                base64 = webcam.snap()
+                let img = document.createElement('img')
+                img.setAttribute('src', base64)
+                img.setAttribute('id', 'canvasImage')
+                canvasElement.appendChild(img)
+                saveImage.disabled = false
+                takeImage.textContent = 'Modifier la photo'
+                
+
+
+            }
+        }
+
+        function dataURItoBlob() {
+            var binary = atob(base64.split(',')[1]);
+            var array = [];
+            for(var i = 0; i < binary.length; i++) {
+                array.push(binary.charCodeAt(i));
+            }
+            return new Blob([new Uint8Array(array)], {type: 'image/jpeg'});
+        }
+
+        let index = 1
+
+        function downloadImage() {
+            if (inputId.value !== "") {
+                if (index < 7) {
+                    let fileName = inputId.value + '_' + index + '.jpeg'
+                    let a = document.createElement('a');
+                    a.setAttribute('download', fileName);
+                    a.setAttribute('href', base64);
+                    a.click();
+
+                    let img = document.createElement('img')
+                    img.setAttribute('src', base64)
+                    img.setAttribute('class', 'base64, w-100')
+                    document.getElementById("p" + index).appendChild(img)
+                    index += 1
+
+                    
+                    const formData = new FormData()
+                    let blob = dataURItoBlob()
+                    formData.set("avatar", blob, fileName);
+                    const request = new XMLHttpRequest();
+                    request.open("POST", "/upload");
+                    request.send(formData);
+                }
+            }
+        }
+
+
+
+
+    </script>
+</body>
+
+</html>
